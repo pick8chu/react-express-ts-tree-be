@@ -1,4 +1,5 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
+import { treeRouter } from './routes/treeRouter';
 
 const app: Application = express();
 
@@ -11,13 +12,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello world');
-});
-
-app.get('/get', (req: Request, res: Response) => {
-  res.send('get request');
-});
+app.use('/tree', treeRouter);
 
 app.listen(port, () => {
   console.log(`Server is listening on port ${port}`);
