@@ -1,14 +1,20 @@
-export interface Node {
-    id: number,
-    name: string,
-    parentId: number,
-    height: number,
-}
+export type Node = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  height: number;
+} & (
+  | {
+      departmentName: string;
+      role: 'manager';
+    }
+  | {
+      programmingLanguage: string;
+      role: 'employee';
+    }
+);
 
-export interface Manager extends Node {
-    departmentName: string,
-}
-
-export interface Employee extends Node {
-    programmingLanguage: number,
-}
+export type TreeNode = {
+  node: Node;
+  children?: TreeNode[];
+};
