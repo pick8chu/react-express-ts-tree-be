@@ -1,11 +1,16 @@
-import { Router } from 'express';
-import { Node, TreeNode } from '../model/node';
+import { Router, Request, Response } from 'express';
+import { Node } from '../model/node';
+import { addNewNode, deleteNode, nodeToTreeNode } from '../utils/treeUtils';
 
-export const treeRouter = Router();
+/**
+ * Some of the functions involve asynchronous operations
+ * such as making HTTP requests and accessing a Map data structure,
+ * so they are marked as async.
+ */
 
 const treeMap: Map<string, Node[]> = new Map();
 
-const root: Node = {
+let root: Node = {
   id: 'root',
   name: 'CEO',
   parentId: null,
@@ -14,85 +19,74 @@ const root: Node = {
   role: 'manager',
 };
 
-treeMap.set(root.id, [
-  {
-    id: '1',
-    name: 'john',
-    parentId: root.id,
-    height: 1,
-    departmentName: 'Management',
-    role: 'manager',
-  },
-  {
-    id: '2',
-    name: 'jane',
-    parentId: root.id,
-    height: 1,
-    departmentName: 'Tech',
-    role: 'manager',
-  },
-]);
-treeMap.set('1', [
-  {
-    id: '9',
-    name: 'amy',
-    parentId: '1',
-    height: 2,
-    programmingLanguage: 'java',
-    role: 'employee',
-  },
-]);
-treeMap.set('9', [
-  {
-    id: '8',
-    name: 'harry',
-    parentId: '9',
-    height: 3,
-    departmentName: 'HR',
-    role: 'manager',
-  },
-]);
+function changeRootNode(req: Request, res: Response) {
+  root = req.body;
+  res.send(root);
+}
 
-treeRouter.post('/', (req, res) => {
+async function addNewNodeHandler(req: Request, res: Response) {
   const newNode = req.body;
-  addNewNode(newNode);
+
+  if (!newNode.parentId) {
+    res.status(400);
+    res.send('parent id is required');
+    return;
+  }
+
+  addNewNode(newNode, treeMap);
   console.log('post success', treeMap.get(newNode.parentId));
+  res.status(201);
   res.send(newNode);
-});
+}
 
-treeRouter.get('/', (_, res) => {
-  res.send([nodeToTreeNode(root, treeMap)]);
-});
+function getEntireTree(req: Request, res: Response) {
+  res.send(nodeToTreeNode(root, treeMap));
+}
 
-treeRouter.get('/:parentId', (req, res) => {
+function getChildrenByParentId(req: Request, res: Response) {
   const parentId = req.params.parentId;
   res.send(treeMap.get(parentId));
-});
+}
 
-treeRouter.put('/', (req, res) => {
+async function changeParent(req: Request, res: Response) {
   const [targetNodeParentId, targetNodeId, toParentId] = req.body.data;
   const targetArray = treeMap.get(targetNodeParentId);
   const targetIdx = targetArray?.findIndex(node => node.id === targetNodeId);
-  if (!targetArray || !targetIdx || targetIdx === -1) {
+  if (!targetArray || targetIdx === undefined || targetIdx === -1) {
     res.status(400);
     res.send('target node not found');
     return;
   }
 
   const newNode = { ...targetArray[targetIdx], parentId: toParentId };
-  addNewNode(newNode);
+  addNewNode(newNode, treeMap);
   targetArray?.splice(targetIdx, 1);
   console.log('parent successfully changed', treeMap.get(newNode.parentId));
   res.send(req.body.data);
-});
+}
 
-const nodeToTreeNode = (node: Node, map: Map<string, Node[]>): TreeNode => {
-  return { node, children: map.get(node.id)?.map(node => nodeToTreeNode(node, map)) };
-};
+async function deleteNodeHandler(req: Request, res: Response) {
+  const nodeId = req.params.nodeId;
+  const parentId = req.body.parentId;
 
-const addNewNode = (newNode: Node) => {
-  if (!newNode.parentId) return;
-  const nodeList = treeMap.get(newNode.parentId);
-  nodeList ? nodeList.push(newNode) : treeMap.set(newNode.parentId, [newNode]);
-  console.log(nodeList ? 'added to existing list' : 'created a new list');
-};
+  const isDeleted = deleteNode(nodeId, parentId, treeMap);
+  if (!isDeleted) {
+    console.log('delete fail');
+    res.status(400);
+    res.send('delete failed');
+    return;
+  }
+
+  console.log('delete success');
+  res.status(204);
+  res.send();
+}
+
+export const treeRouter = Router();
+
+treeRouter.put('/root', changeRootNode);
+treeRouter.post('/', addNewNodeHandler);
+treeRouter.get('/', getEntireTree);
+treeRouter.get('/:parentId', getChildrenByParentId);
+treeRouter.put('/', changeParent);
+treeRouter.delete('/:nodeId', deleteNodeHandler);
