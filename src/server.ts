@@ -16,6 +16,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use(bodyParser.json());
 
+app.get('/', (req: Request, res: Response) => {
+  res.send('Hello World!');
+});
+
 app.use('/trees', treeRouter);
 
 app.listen(port, () => {
